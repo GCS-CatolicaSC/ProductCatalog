@@ -1,4 +1,4 @@
-name: CI do Catálogo de Produtos
+name: CI do CatÃ¡logo de Produtos
 
 # Gatilhos: Executa em pushes para 'master' ou 'feature/*'
 # e em pull requests abertos contra 'master'
@@ -10,12 +10,12 @@ on:
 
 jobs:
   build-and-test:
-    # Usamos a versão mais recente do Ubuntu
+    # Usamos a versÃ£o mais recente do Ubuntu
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout do código
-      - name: Checkout do repositório
+      # 1. Checkout do cÃ³digo
+      - name: Checkout do repositÃ³rio
         uses: actions/checkout@v4
 
       # --- ETAPA DO BACKEND (.NET) ---
@@ -26,7 +26,7 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      # 3. Cache dos pacotes NuGet para acelerar futuras builds
+      # 3. Cache dos pacotes NuGet
       - name: Cache de pacotes NuGet
         uses: actions/cache@v4
         with:
@@ -35,38 +35,41 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-nuget-
 
-      # 4. Restaurar dependências .NET
-      - name: Restaurar dependências .NET
-        run: dotnet restore ProductCatalog.sln
+      # 4. Restaurar dependÃªncias .NET (Individualmente)
+      #    Isso evita o problema de case-sensitivity no .sln
+      - name: Restaurar dependÃªncias .NET
+        run: |
+          dotnet restore ProductCatalog.Api/ProductCatalog.Api.csproj
+          dotnet restore ProductCatalog.Tests/ProductCatalog.Tests.csproj
 
-      # 5. Construir a solução .NET em modo Release
+      # 5. Construir a soluÃ§Ã£o .NET
       - name: Build .NET
         run: dotnet build ProductCatalog.sln --configuration Release --no-restore
 
       # 6. Executar os testes .NET
       - name: Executar testes .NET
-        run: dotnet test ProductCatalog.sln --configuration Release --no-build --no-restore
+        run: dotnet test ProductCatalog.Tests/ProductCatalog.Tests.csproj --configuration Release --no-build
 
       # --- ETAPA DO FRONTEND (Node.js) ---
 
-      # 7. Configurar o Node.js
+      # 7. Configurar o Node.js 20
       - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
       # 8. Cache dos pacotes NPM
-      - name: Cache de módulos Node (npm)
+      - name: Cache de mÃ³dulos Node (npm)
         uses: actions/cache@v4
         with:
           # O cache do npm fica em ~/.npm
-          path: ~/.npm 
+          path: ~/.npm
           key: ${{ runner.os }}-node-${{ hashFiles('productcatalog.app/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-node-
 
-      # 9. Instalar dependências do frontend (usando 'npm ci' para builds de CI)
-      - name: Instalar dependências do Frontend
+      # 9. Instalar dependÃªncias do frontend (usando 'npm ci' para builds de CI)
+      - name: Instalar dependÃªncias do Frontend
         run: npm ci
         working-directory: ./productcatalog.app
 
