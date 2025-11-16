@@ -14,6 +14,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "workflows", "workflows", "{2428A44B-E84F-4EFD-8D77-08A685C94498}"
 	ProjectSection(SolutionItems) = preProject
 		ci.yml = ci.yml
+		test.txt = test.txt
 	EndProjectSection
 EndProject
 Global
