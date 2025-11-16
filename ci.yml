@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  push:
+    branches: ["master", "feature/**"]
+  pull_request:
+    branches: ["master"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore .NET dependencies
+        run: dotnet restore
+
+      - name: Build .NET (API)
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Run .NET tests (collect coverage)
+        run: |
+          dotnet test ProductCatalog.Tests --configuration Release --no-build --verbosity normal --results-directory ./test-results --logger "trx;LogFileName=tests.trx" --collect:"XPlat Code Coverage"
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: ./test-results
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Cache frontend node modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ProductCatalog.App/node_modules
+            ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('ProductCatalog.App/**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      - name: Install frontend dependencies
+        working-directory: ProductCatalog.App
+        run: npm ci
+
+      - name: Build frontend (Vite)
+        working-directory: ProductCatalog.App
+        run: npm run build --if-present
+
+      - name: Publish API
+        run: dotnet publish ProductCatalog.Api/ProductCatalog.Api.csproj -c Release -o ./publish --no-restore
+
+      - name: Upload publish artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: publish
+          path: ./publish
