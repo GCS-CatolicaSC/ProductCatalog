@@ -1,5 +1,7 @@
-name: CI
+name: CI do Catálogo de Produtos
 
+# Gatilhos: Executa em pushes para 'master' ou 'feature/*'
+# e em pull requests abertos contra 'master'
 on:
   push:
     branches: ["master", "feature/**"]
@@ -7,16 +9,25 @@ on:
     branches: ["master"]
 
 jobs:
-  build:
+  build-and-test:
+    # Usamos a versão mais recente do Ubuntu
     runs-on: ubuntu-latest
-    env:
-      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
 
     steps:
-      - name: Checkout
+      # 1. Checkout do código
+      - name: Checkout do repositório
         uses: actions/checkout@v4
 
-      - name: Cache NuGet packages
+      # --- ETAPA DO BACKEND (.NET) ---
+
+      # 2. Configurar o .NET SDK (baseado nos seus arquivos .csproj)
+      - name: Setup .NET 8.0
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      # 3. Cache dos pacotes NuGet para acelerar futuras builds
+      - name: Cache de pacotes NuGet
         uses: actions/cache@v4
         with:
           path: ~/.nuget/packages
@@ -24,57 +35,42 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-nuget-
 
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v3
-        with:
-          dotnet-version: '8.0.x'
+      # 4. Restaurar dependências .NET
+      - name: Restaurar dependências .NET
+        run: dotnet restore ProductCatalog.sln
 
-      - name: Restore .NET dependencies
-        run: |
-          dotnet restore ProductCatalog.Api/ProductCatalog.Api.csproj
-          dotnet restore ProductCatalog.Tests/ProductCatalog.Tests.csproj
+      # 5. Construir a solução .NET em modo Release
+      - name: Build .NET
+        run: dotnet build ProductCatalog.sln --configuration Release --no-restore
 
-      - name: Build .NET (API)
-        run: dotnet build ProductCatalog.Api/ProductCatalog.Api.csproj --configuration Release --no-restore
+      # 6. Executar os testes .NET
+      - name: Executar testes .NET
+        run: dotnet test ProductCatalog.sln --configuration Release --no-build --no-restore
 
-      - name: Run .NET tests (collect coverage)
-        run: |
-          ls -la ProductCatalog.Tests/bin/Release/net8.0 || true
-          dotnet test ProductCatalog.Tests --configuration Release --verbosity normal --results-directory ./test-results --logger "trx;LogFileName=tests.trx" --collect:"XPlat Code Coverage"
-      - name: Upload test results
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results
-          path: ./test-results
+      # --- ETAPA DO FRONTEND (Node.js) ---
 
-      - name: Setup Node.js
+      # 7. Configurar o Node.js
+      - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
 
-      - name: Cache frontend node modules
+      # 8. Cache dos pacotes NPM
+      - name: Cache de módulos Node (npm)
         uses: actions/cache@v4
         with:
-          path: |
-            ProductCatalog.App/node_modules
-            ~/.npm
-          key: ${{ runner.os }}-node-${{ hashFiles('ProductCatalog.App/**/package-lock.json') }}
+          # O cache do npm fica em ~/.npm
+          path: ~/.npm 
+          key: ${{ runner.os }}-node-${{ hashFiles('productcatalog.app/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-node-
 
-      - name: Install frontend dependencies
-        working-directory: ProductCatalog.App
+      # 9. Instalar dependências do frontend (usando 'npm ci' para builds de CI)
+      - name: Instalar dependências do Frontend
         run: npm ci
+        working-directory: ./productcatalog.app
 
-      - name: Build frontend (Vite)
-        working-directory: ProductCatalog.App
-        run: npm run build --if-present
-
-      - name: Publish API
-        run: dotnet publish ProductCatalog.Api/ProductCatalog.Api.csproj -c Release -o ./publish --no-restore
-
-      - name: Upload publish artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: publish
-          path: ./publish
+      # 10. Buildar o projeto frontend (Vite)
+      - name: Build Frontend
+        run: npm run build
+        working-directory: ./productcatalog.app
