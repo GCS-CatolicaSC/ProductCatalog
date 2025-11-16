@@ -30,10 +30,12 @@ jobs:
           dotnet-version: '8.0.x'
 
       - name: Restore .NET dependencies
-        run: dotnet restore
+        run: |
+          dotnet restore ProductCatalog.Api/ProductCatalog.Api.csproj
+          dotnet restore ProductCatalog.Tests/ProductCatalog.Tests.csproj
 
       - name: Build .NET (API)
-        run: dotnet build --configuration Release --no-restore
+        run: dotnet build ProductCatalog.Api/ProductCatalog.Api.csproj --configuration Release --no-restore
 
       - name: Run .NET tests (collect coverage)
         run: |
