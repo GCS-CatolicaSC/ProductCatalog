@@ -39,7 +39,8 @@ jobs:
 
       - name: Run .NET tests (collect coverage)
         run: |
-          dotnet test ProductCatalog.Tests --configuration Release --no-build --verbosity normal --results-directory ./test-results --logger "trx;LogFileName=tests.trx" --collect:"XPlat Code Coverage"
+          ls -la ProductCatalog.Tests/bin/Release/net8.0 || true
+          dotnet test ProductCatalog.Tests --configuration Release --verbosity normal --results-directory ./test-results --logger "trx;LogFileName=tests.trx" --collect:"XPlat Code Coverage"
       - name: Upload test results
         uses: actions/upload-artifact@v4
         with:
